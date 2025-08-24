@@ -21,6 +21,7 @@ export const Login: React.FC = () => {
   })
 
   const [errors, setErrors] = useState<LoginFormErrors>({})
+  const [showPassword, setShowPassword] = useState(false)
 
   const validateUsername = (username: string): string | undefined => {
     if (username.trim().length < 3) {
@@ -125,14 +126,24 @@ export const Login: React.FC = () => {
               <label className="form-label">
                 Senha
               </label>
-              <input
-                type="password"
-                className={`form-input ${errors.password ? 'error' : ''}`}
-                placeholder="Digite sua senha"
-                value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                onBlur={() => handleBlur('password')}
-              />
+              <div className="password-input-container">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className={`form-input ${errors.password ? 'error' : ''}`}
+                  placeholder="Digite sua senha"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  onBlur={() => handleBlur('password')}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
               {errors.password && <span className="error-message">{errors.password}</span>}
             </div>
 
