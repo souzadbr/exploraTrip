@@ -7,7 +7,6 @@ import './Register.css'
 interface FormData {
   fullName: string
   email: string
-  phone: string
   password: string
   confirmPassword: string
 }
@@ -15,26 +14,38 @@ interface FormData {
 interface FormErrors {
   fullName?: string
   email?: string
-  phone?: string
   password?: string
   confirmPassword?: string
+}
+
+interface ApiResponse {
+  data: {
+    id: string
+    name: string
+    emailVal: string
+    password: string
+  }
+  isSuccess: boolean
+  message: string
 }
 
 export const Register: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: ''
   })
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [showPasswordRequirements, setShowPasswordRequirements] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // Regex patterns
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  const phoneRegex = /^(\(?\d{2}\)?\s?)?(\d{4,5})-?(\d{4})$/
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
 
   const validateFullName = (name: string): string | undefined => {
@@ -55,12 +66,7 @@ export const Register: React.FC = () => {
     return undefined
   }
 
-  const validatePhone = (phone: string): string | undefined => {
-    if (!phoneRegex.test(phone)) {
-      return 'Telefone inválido. Use formato: (11) 99999-9999'
-    }
-    return undefined
-  }
+
 
   const validatePassword = (password: string): string | undefined => {
     if (!passwordRegex.test(password)) {
@@ -96,9 +102,6 @@ export const Register: React.FC = () => {
       case 'email':
         error = validateEmail(value)
         break
-      case 'phone':
-        error = validatePhone(value)
-        break
       case 'password':
         error = validatePassword(value)
         break
@@ -112,21 +115,74 @@ export const Register: React.FC = () => {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const registerUser = async (userData: { name: string; emailVal: string; password: string }) => {
+    try {
+      console.log('Enviando dados para API:', userData)
+
+      const response = await fetch('http://localhost:5052/api/user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      })
+
+      console.log('Resposta da API - Status:', response.status)
+      console.log('Resposta da API - Headers:', response.headers)
+
+      if (!response.ok) {
+        if (response.status === 400) {
+          return { success: false, error: 'Dados inválidos. Verifique as informações fornecidas.' }
+        } else if (response.status === 409) {
+          return { success: false, error: 'Este email já está cadastrado.' }
+        } else if (response.status === 500) {
+          return { success: false, error: 'Erro interno do servidor. Tente novamente mais tarde.' }
+        }
+        throw new Error(`Erro HTTP: ${response.status}`)
+      }
+
+      const result: ApiResponse = await response.json()
+
+      if (result.isSuccess) {
+        return { success: true, data: result.data }
+      } else {
+        return { success: false, error: result.message || 'Erro desconhecido do servidor' }
+      }
+    } catch (error) {
+      console.error('Erro ao registrar usuário:', error)
+      console.error('Tipo do erro:', typeof error)
+      console.error('Erro detalhado:', error)
+
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return {
+          success: false,
+          error: 'Não foi possível conectar ao servidor. Verifique se o backend está rodando na porta 5052.'
+        }
+      }
+      return {
+        success: false,
+        error: 'Erro de conexão com o servidor. Tente novamente.'
+      }
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Clear previous messages
+    setSuccessMessage('')
+    setErrors({})
 
     const newErrors: FormErrors = {}
 
     // Validate all fields
     const fullNameError = validateFullName(formData.fullName)
     const emailError = validateEmail(formData.email)
-    const phoneError = validatePhone(formData.phone)
     const passwordError = validatePassword(formData.password)
     const confirmPasswordError = validateConfirmPassword(formData.confirmPassword, formData.password)
 
     if (fullNameError) newErrors.fullName = fullNameError
     if (emailError) newErrors.email = emailError
-    if (phoneError) newErrors.phone = phoneError
     if (passwordError) newErrors.password = passwordError
     if (confirmPasswordError) newErrors.confirmPassword = confirmPasswordError
 
@@ -134,8 +190,37 @@ export const Register: React.FC = () => {
 
     // If no errors, submit form
     if (Object.keys(newErrors).length === 0) {
-      console.log('Form submitted:', formData)
-      // Here you would typically send data to your API
+      setIsLoading(true)
+
+      const result = await registerUser({
+        name: formData.fullName,
+        emailVal: formData.email,
+        password: formData.password
+      })
+
+      setIsLoading(false)
+
+      if (result.success) {
+        setSuccessMessage('Cadastro realizado com sucesso!')
+        // Reset form
+        setFormData({
+          fullName: '',
+          email: '',
+          password: '',
+          confirmPassword: ''
+        })
+        // Optionally redirect to login after a delay
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 2000)
+      } else {
+        // Handle API errors
+        if (result.error?.includes('email')) {
+          setErrors(prev => ({ ...prev, email: 'Este email já está em uso' }))
+        } else {
+          setErrors(prev => ({ ...prev, email: result.error || 'Erro ao criar conta' }))
+        }
+      }
     }
   }
 
@@ -193,32 +278,27 @@ export const Register: React.FC = () => {
 
             <div className="form-group">
               <label className="form-label">
-                Telefone
-              </label>
-              <input
-                type="tel"
-                className={`form-input ${errors.phone ? 'error' : ''}`}
-                placeholder="(11) 99999-9999"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                onBlur={() => handleBlur('phone')}
-              />
-              {errors.phone && <span className="error-message">{errors.phone}</span>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
                 Senha
               </label>
-              <input
-                type="password"
-                className={`form-input ${errors.password ? 'error' : ''}`}
-                placeholder="Sua senha"
-                value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                onBlur={() => handleBlur('password')}
-                onFocus={() => setShowPasswordRequirements(true)}
-              />
+              <div className="password-input-container">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className={`form-input ${errors.password ? 'error' : ''}`}
+                  placeholder="Sua senha"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  onBlur={() => handleBlur('password')}
+                  onFocus={() => setShowPasswordRequirements(true)}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
               {errors.password && <span className="error-message">{errors.password}</span>}
               {showPasswordRequirements && !errors.password && (
                 <div className="password-requirements">
@@ -231,22 +311,39 @@ export const Register: React.FC = () => {
               <label className="form-label">
                 Confirmar senha
               </label>
-              <input
-                type="password"
-                className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
-                placeholder="Confirme sua senha"
-                value={formData.confirmPassword}
-                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                onBlur={() => handleBlur('confirmPassword')}
-              />
+              <div className="password-input-container">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
+                  placeholder="Confirme sua senha"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  onBlur={() => handleBlur('confirmPassword')}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Esconder senha" : "Mostrar senha"}
+                >
+                  {showConfirmPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
               {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
             </div>
+
+            {successMessage && (
+              <div className="success-message">
+                {successMessage}
+              </div>
+            )}
 
             <button
               type="submit"
               className="submit-button"
+              disabled={isLoading}
             >
-              Cadastrar
+              {isLoading ? 'Cadastrando...' : 'Cadastrar'}
             </button>
 
             <div className="login-link-container">
