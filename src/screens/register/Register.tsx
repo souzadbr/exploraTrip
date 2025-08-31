@@ -3,6 +3,12 @@ import { Link } from 'react-router-dom'
 import logo from '../../assets/logo.png'
 import banner from '../../assets/banner.png'
 import './Register.css'
+import {
+  mapApiFieldErrors,
+  inferFieldFromErrorMessage,
+  getHttpErrorMessage,
+  getConnectionErrorMessage
+} from '../../utils/apiErrorHandler'
 
 interface FormData {
   fullName: string
@@ -27,6 +33,30 @@ interface ApiResponse {
   }
   isSuccess: boolean
   message: string
+}
+
+interface ApiErrorResponse {
+  data: null
+  isSuccess: false
+  message: string
+  errors?: {
+    [field: string]: string[]
+  }
+}
+
+interface ValidationErrorResponse {
+  type: string
+  title: string
+  status: number
+  errors: {
+    [field: string]: string[]
+  }
+  traceId: string
+}
+
+interface ServerErrorResponse {
+  title: string
+  status: number
 }
 
 export const Register: React.FC = () => {
@@ -130,38 +160,88 @@ export const Register: React.FC = () => {
       console.log('Resposta da API - Status:', response.status)
       console.log('Resposta da API - Headers:', response.headers)
 
-      if (!response.ok) {
-        if (response.status === 400) {
-          return { success: false, error: 'Dados inválidos. Verifique as informações fornecidas.' }
-        } else if (response.status === 409) {
-          return { success: false, error: 'Este email já está cadastrado.' }
-        } else if (response.status === 500) {
-          return { success: false, error: 'Erro interno do servidor. Tente novamente mais tarde.' }
+      // Parse response body for both success and error cases
+      let responseData: ApiResponse | ApiErrorResponse | ValidationErrorResponse | ServerErrorResponse
+      try {
+        responseData = await response.json()
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError)
+        return {
+          success: false,
+          error: 'Resposta inválida do servidor. Tente novamente.',
+          fieldErrors: {}
         }
-        throw new Error(`Erro HTTP: ${response.status}`)
       }
 
-      const result: ApiResponse = await response.json()
+      if (!response.ok) {
+        // Handle different error response formats from the API
 
+        if (response.status === 400) {
+          // Check if it's a validation error response (ASP.NET format)
+          if ('errors' in responseData && 'title' in responseData) {
+            const validationError = responseData as ValidationErrorResponse
+            return {
+              success: false,
+              error: validationError.title || 'Dados inválidos fornecidos.',
+              fieldErrors: validationError.errors || {}
+            }
+          }
+
+          // Check if it's a simple API error response
+          if ('isSuccess' in responseData) {
+            const apiError = responseData as ApiErrorResponse
+            return {
+              success: false,
+              error: apiError.message || 'Dados inválidos.',
+              fieldErrors: apiError.errors || {}
+            }
+          }
+        }
+
+        if (response.status === 500) {
+          // Handle server error response
+          if ('title' in responseData) {
+            const serverError = responseData as ServerErrorResponse
+            return {
+              success: false,
+              error: 'Erro interno do servidor. Tente novamente mais tarde.',
+              fieldErrors: {}
+            }
+          }
+        }
+
+        // Fallback for other error types
+        const errorMessage = getHttpErrorMessage(response.status)
+        return {
+          success: false,
+          error: errorMessage,
+          fieldErrors: {}
+        }
+      }
+
+      // Success case
+      const result = responseData as ApiResponse
       if (result.isSuccess) {
-        return { success: true, data: result.data }
+        return { success: true, data: result.data, fieldErrors: {} }
       } else {
-        return { success: false, error: result.message || 'Erro desconhecido do servidor' }
+        return {
+          success: false,
+          error: result.message || 'Erro desconhecido do servidor',
+          fieldErrors: {}
+        }
       }
     } catch (error) {
       console.error('Erro ao registrar usuário:', error)
       console.error('Tipo do erro:', typeof error)
       console.error('Erro detalhado:', error)
 
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        return {
-          success: false,
-          error: 'Não foi possível conectar ao servidor. Verifique se o backend está rodando na porta 5052.'
-        }
-      }
+      // Use utility functions for consistent error handling
+      const errorMessage = getConnectionErrorMessage(error)
+
       return {
         success: false,
-        error: 'Erro de conexão com o servidor. Tente novamente.'
+        error: errorMessage,
+        fieldErrors: {}
       }
     }
   }
@@ -214,12 +294,27 @@ export const Register: React.FC = () => {
           window.location.href = '/login'
         }, 2000)
       } else {
-        // Handle API errors
-        if (result.error?.includes('email')) {
-          setErrors(prev => ({ ...prev, email: 'Este email já está em uso' }))
-        } else {
-          setErrors(prev => ({ ...prev, email: result.error || 'Erro ao criar conta' }))
+        // Handle API errors with improved field-specific error mapping
+        const newErrors: FormErrors = {}
+
+        // Use utility function to map API field errors
+        if (result.fieldErrors) {
+          const mappedErrors = mapApiFieldErrors(result.fieldErrors)
+          Object.assign(newErrors, mappedErrors)
         }
+
+        // If no specific field errors, determine field based on error message
+        if (Object.keys(newErrors).length === 0 && result.error) {
+          const fieldName = inferFieldFromErrorMessage(result.error)
+          newErrors[fieldName as keyof FormErrors] = result.error
+        }
+
+        // If still no specific errors, show generic error
+        if (Object.keys(newErrors).length === 0) {
+          newErrors.email = result.error || 'Erro ao criar conta. Tente novamente.'
+        }
+
+        setErrors(prev => ({ ...prev, ...newErrors }))
       }
     }
   }
@@ -296,7 +391,7 @@ export const Register: React.FC = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
                 >
-                  {showPassword ? "🙈" : "👁️"}
+                  {showPassword ? "🙄" : "👁️"}
                 </button>
               </div>
               {errors.password && <span className="error-message">{errors.password}</span>}
@@ -326,7 +421,7 @@ export const Register: React.FC = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   aria-label={showConfirmPassword ? "Esconder senha" : "Mostrar senha"}
                 >
-                  {showConfirmPassword ? "🙈" : "👁️"}
+                  {showConfirmPassword ? "🙄" : "👁️"}
                 </button>
               </div>
               {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
@@ -340,7 +435,7 @@ export const Register: React.FC = () => {
 
             <button
               type="submit"
-              className="submit-button"
+              className={`submit-button ${isLoading ? 'loading' : ''}`}
               disabled={isLoading}
             >
               {isLoading ? 'Cadastrando...' : 'Cadastrar'}
