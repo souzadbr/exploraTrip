@@ -1,3 +1,5 @@
+@import './styles/colors.css';
+
 * {
   margin: 0;
   padding: 0;
@@ -10,4 +12,6 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--gray-50);
+  color: var(--text-primary);
 }
