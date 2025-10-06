@@ -36,7 +36,12 @@ export const CreateTrip: React.FC = () => {
     endDate: '',
     budget: 0,
     notes: [],
-    userRoles: []
+    userRoles: [
+      {
+        userEmail: currentUser!,
+        role: 1
+      }
+    ]
   })
 
   const [currentNote, setCurrentNote] = useState('')
@@ -113,23 +118,6 @@ export const CreateTrip: React.FC = () => {
     }))
   }
 
-  const addUserRoleDefault = () => {
-  if (currentUser != null) {
-    const newUserRole: UserRole = {
-      userEmail: currentUser.trim(),
-      role: 1
-    }
-    setFormData(prev => {
-      const updated = {
-        ...prev,
-        userRoles: [...prev.userRoles, newUserRole]
-      }
-      console.log('Novo userRoles:', updated.userRoles)
-      return updated
-    })
-  }
-}
-
   const addUserRole = () => {
     if (currentUserEmail.trim()) {
       const newUserRole: UserRole = {
@@ -200,15 +188,13 @@ export const CreateTrip: React.FC = () => {
       // Helper function to convert date input to ISO string
       const convertToISOString = (dateString: string): string => {
         try {
-          const date = new Date(dateString + 'T00:00:00.000Z')
+          const date = new Date(dateString + 'T00:00:00.000Z');
           return date.toISOString()
         } catch (error) {
           console.error('Error converting date to ISO:', error)
           return new Date().toISOString()
         }
       }
-
-      addUserRoleDefault()
       // Preparar dados para envio
       const tripData: TripApiData = {
         name: formData.name.trim(),
@@ -216,7 +202,7 @@ export const CreateTrip: React.FC = () => {
         endDate: convertToISOString(formData.endDate),
         budget: formData.budget,
         notes: formData.notes,
-        userRoles: formData.userRoles // Incluir ou não participantes
+        userRoles: formData.userRoles
       }
 
       console.log('Enviando dados da viagem:', tripData)

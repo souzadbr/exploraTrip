@@ -23,6 +23,49 @@ export class AuthService {
     }
   }
 
+  // Get user by email
+  static async getByEmail(email: string): Promise<LoginResult> {
+    try {
+      // const safeEmail = email.replace(/@/g, '%40')
+      const response = await fetch(buildApiUrl(`${API_CONFIG.ENDPOINTS.GETUSERBYEMAIL}/${email}`), {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+
+      const responseJson = await response.json();
+      console.log('Resultado da api: ', responseJson);
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: responseJson.message,
+          message: responseJson.message
+        };
+      }
+
+      // Mapeando o retorno do backend
+      if (responseJson.isSuccess && responseJson.data) {
+        return {
+          success: true,
+          data: responseJson.data,
+          message: responseJson.message
+        };
+      }
+
+      return {
+        success: false,
+        error: responseJson.message || 'Usuário não encontrado',
+        message: responseJson.message
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: 'Erro inesperado ao buscar usuário',
+        message: error?.message
+      };
+    }
+  }
+
   static async login(loginData: LoginApiData): Promise<LoginResult> {
     try {
       console.log('Enviando dados de login para API:', { email: loginData.email, password: loginData.password })

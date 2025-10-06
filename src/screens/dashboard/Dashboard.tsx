@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import logoHome from '../../assets/logo-home.png';
@@ -8,9 +8,21 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Obter dados do usuário logado
-  const userData = AuthService.getUserData();
-  const userName = userData?.name || 'Usuário';
-
+  const userEmail = AuthService.getUserData();
+  // const userData = await AuthService.getByEmail(userEmail!);
+  const [userName, setUserName] = useState<string>('Usuário');
+  useEffect(() => {
+      const fetchUser = async () => {
+        if (userEmail) {
+          const userData = await AuthService.getByEmail(userEmail);
+          if (userData.success && userData.data) {
+            console.log(userData.data)
+            setUserName(userData.data.userName || userData.data.name || 'Usuário');
+          }
+        }
+      };
+      fetchUser();
+    }, [userEmail]);
   const handleLogout = () => {
     // Limpar dados de autenticação usando o AuthService
     AuthService.clearAuthData();

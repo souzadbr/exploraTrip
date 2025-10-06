@@ -11,6 +11,7 @@ export const API_CONFIG = {
     VERIFY_OTP: '/user/confirmCode', // POST - Verificar código OTP
     RESET_PASSWORD: '/user/resetPassword', // POST - Redefinir senha
     TRIP: '/trip', // POST/GET - Operações de viagem
+    GETUSERBYEMAIL: '/user/getUserByEmail' // GET - Pega o usuário pelo e-mail
   }
 }
 
