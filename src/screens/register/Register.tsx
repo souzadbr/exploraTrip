@@ -3,13 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import logo from '../../assets/logo.png'
 import './Register.css'
 import {
-  mapApiFieldErrors,
+  // mapApiFieldErrors,
   inferFieldFromErrorMessage,
   getHttpErrorMessage,
   getConnectionErrorMessage
 } from '../../utils/apiErrorHandler'
 import { AuthService } from '../../services/authService'
-import { buildApiUrl, API_CONFIG } from '../../config/api'
+// import { buildApiUrl, API_CONFIG } from '../../config/api'
 
 interface FormData {
   fullName: string
@@ -309,17 +309,17 @@ export const Register: React.FC = () => {
 
         // Navegar para tela de verificação de cadastro após 2 segundos
         setTimeout(() => {
-          navigate('/verify-registration', { state: { email: formData.email } })
+          navigate('/verify-otp')
         }, 2000)
       } else {
         // Handle API errors with improved field-specific error mapping
         const newErrors: FormErrors = {}
 
         // Use utility function to map API field errors
-        if (result.fieldErrors) {
-          const mappedErrors = mapApiFieldErrors(result.fieldErrors)
-          Object.assign(newErrors, mappedErrors)
-        }
+        // if (result.fieldErrors) {
+        //   const mappedErrors = mapApiFieldErrors(result.fieldErrors)
+        //   Object.assign(newErrors, mappedErrors)
+        // }
 
         // If no specific field errors, determine field based on error message
         if (Object.keys(newErrors).length === 0 && result.error) {
@@ -335,7 +335,7 @@ export const Register: React.FC = () => {
         setErrors(prev => ({ ...prev, ...newErrors }))
 
         // Se é erro de email duplicado, mostrar opção de reenvio
-        if ((result as any).suggestVerification) {
+        if ('suggestVerification' in result && result.suggestVerification) {
           setSuccessMessage('')
           setShowResendOption(true)
         }

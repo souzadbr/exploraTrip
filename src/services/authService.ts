@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { buildApiUrl, API_CONFIG } from '../config/api'
 import type { LoginApiData, LoginApiResponse } from '../config/api'
 import {
@@ -24,7 +25,7 @@ export class AuthService {
 
   static async login(loginData: LoginApiData): Promise<LoginResult> {
     try {
-      console.log('Enviando dados de login para API:', { email: loginData.email, password: '***' })
+      console.log('Enviando dados de login para API:', { email: loginData.email, password: loginData.password })
 
       const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.LOGIN), {
         method: 'POST',
@@ -153,14 +154,13 @@ export class AuthService {
   }
 
   // Método para salvar dados de autenticação no localStorage
-  static saveAuthData(userData: LoginApiResponse): void {
-    localStorage.setItem('user', JSON.stringify(userData))
+  static saveAuthData(email: string): void {
+    localStorage.setItem('user', email)
     localStorage.setItem('isAuthenticated', 'true')
-    
     // Salvar token se disponível
-    if (userData.token) {
-      localStorage.setItem('authToken', userData.token)
-    }
+    // if (userData.token) {
+    //   localStorage.setItem('authToken', userData.token)
+    // }
   }
 
   // Método para limpar dados de autenticação
@@ -176,16 +176,17 @@ export class AuthService {
   }
 
   // Método para obter dados do usuário
-  static getUserData(): LoginApiResponse | null {
+  static getUserData(): string | null {
     const userData = localStorage.getItem('user')
-    if (userData) {
-      try {
-        return JSON.parse(userData)
-      } catch {
-        return null
-      }
-    }
-    return null
+    return userData
+    // if (userData) {
+    //   try {
+    //     return JSON.parse(userData)
+    //   } catch {
+    //     return null
+    //   }
+    // }
+    // return null
   }
 
   // Método para obter token de autenticação
@@ -271,14 +272,14 @@ export class AuthService {
   }
 
   // Método para verificar código OTP
-  static async verifyOtp(email: string, otp: string): Promise<LoginResult> {
+  static async verifyOtp(email: string, code: number): Promise<LoginResult> {
     try {
-      console.log('Verificando OTP para:', email)
+      console.log('Verificando OTP para:', email, code)
 
-      const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.VERIFY_OTP), {
+      const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.VERIFY_OTP+'/1'), {
         method: 'POST',
         headers: this.getHeaders(),
-        body: JSON.stringify({ email, otp })
+        body: JSON.stringify({ email, code })
       })
 
       console.log('Resposta da verificação OTP - Status:', response.status)

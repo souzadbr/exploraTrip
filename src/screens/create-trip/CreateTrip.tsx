@@ -6,6 +6,7 @@ import { TripService } from '../../services/tripService'
 import type { TripApiData, TripApiResponse } from '../../config/api'
 import { TripCard } from '../../components/TripCard/TripCard'
 import { EditTripModal } from '../../components/EditTripModal/EditTripModal'
+import { AuthService } from '../../services/authService'
 
 interface UserRole {
   userEmail: string
@@ -22,6 +23,7 @@ interface TripFormData {
 }
 
 export const CreateTrip: React.FC = () => {
+  const currentUser = AuthService.getUserData()
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -111,6 +113,23 @@ export const CreateTrip: React.FC = () => {
     }))
   }
 
+  const addUserRoleDefault = () => {
+  if (currentUser != null) {
+    const newUserRole: UserRole = {
+      userEmail: currentUser.trim(),
+      role: 1
+    }
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        userRoles: [...prev.userRoles, newUserRole]
+      }
+      console.log('Novo userRoles:', updated.userRoles)
+      return updated
+    })
+  }
+}
+
   const addUserRole = () => {
     if (currentUserEmail.trim()) {
       const newUserRole: UserRole = {
@@ -168,7 +187,7 @@ export const CreateTrip: React.FC = () => {
     return true
   }
 
-  const createTripWithData = async (includeParticipants: boolean = true) => {
+  const createTripWithData = async () => {
     setError('')
     setSuccessMessage('')
     setFieldErrors({})
@@ -189,6 +208,7 @@ export const CreateTrip: React.FC = () => {
         }
       }
 
+      addUserRoleDefault()
       // Preparar dados para envio
       const tripData: TripApiData = {
         name: formData.name.trim(),
@@ -196,7 +216,7 @@ export const CreateTrip: React.FC = () => {
         endDate: convertToISOString(formData.endDate),
         budget: formData.budget,
         notes: formData.notes,
-        userRoles: includeParticipants ? formData.userRoles : [] // Incluir ou não participantes
+        userRoles: formData.userRoles // Incluir ou não participantes
       }
 
       console.log('Enviando dados da viagem:', tripData)
@@ -254,11 +274,11 @@ export const CreateTrip: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await createTripWithData(true) // Incluir participantes
+    await createTripWithData() // Incluir participantes
   }
 
   const handleSubmitWithoutParticipants = async () => {
-    await createTripWithData(false) // Não incluir participantes
+    await createTripWithData() // Não incluir participantes
   }
 
   const handleBack = () => {

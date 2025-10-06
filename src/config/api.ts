@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // API Configuration
 export const API_CONFIG = {
   BASE_URL: 'http://localhost:5052/api',
@@ -7,7 +8,7 @@ export const API_CONFIG = {
     CONFIRM_CODE: '/user/confirmCode', // POST - Confirmação de código de ativação
     RESEND_ACTIVATION: '/user/resendActivationCode', // POST - Reenvio de código de ativação
     FORGOT_PASSWORD: '/user/forgotPassword', // POST - Solicitar reset de senha
-    VERIFY_OTP: '/user/verify-otp', // POST - Verificar código OTP
+    VERIFY_OTP: '/user/confirmCode', // POST - Verificar código OTP
     RESET_PASSWORD: '/user/resetPassword', // POST - Redefinir senha
     TRIP: '/trip', // POST/GET - Operações de viagem
   }

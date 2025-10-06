@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { buildApiUrl, API_CONFIG } from '../config/api'
 import type { TripApiData, TripApiResponse } from '../config/api'
 import {
@@ -50,7 +51,6 @@ export class TripService {
   static async createTrip(tripData: TripApiData): Promise<CreateTripResult> {
     try {
       console.log('Enviando dados da viagem para API:', tripData)
-
       const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.TRIP), {
         method: 'POST',
         headers: this.getAuthHeaders(),
@@ -378,6 +378,7 @@ export class TripService {
           responseData = await response.json()
         } catch (parseError) {
           // Ignore parse errors for DELETE requests
+          console.log(parseError)
         }
 
         if (response.status === 401) {

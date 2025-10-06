@@ -60,7 +60,8 @@ export const Login: React.FC = () => {
 
       if (result.success && result.data) {
         // Salvar dados de autenticação
-        AuthService.saveAuthData(result.data)
+        console.log('data salva no storage: ', formData.email)
+        AuthService.saveAuthData(formData.email)
 
         // Navegar para o dashboard
         navigate('/dashboard')

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import logo from '../../assets/logo.png'
 import { AuthService } from '../../services/authService'
 import './VerifyOtp.css'
 
 export const VerifyOtp: React.FC = () => {
   const navigate = useNavigate()
-  const location = useLocation()
-  const email = location.state?.email || ''
-  
+  // const location = useLocation()
+  // const email = location.state?.email || ''
+  const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -17,22 +17,24 @@ export const VerifyOtp: React.FC = () => {
 
   // Redirecionar se não tiver email
   useEffect(() => {
-    if (!email) {
-      navigate('/forgot-password')
-    }
+    // if (!email) {
+    //   navigate('/forgot-password')
+    // }
   }, [email, navigate])
 
   const handleInputChange = (value: string) => {
     // Permitir apenas números e limitar a 6 dígitos
     const numericValue = value.replace(/\D/g, '').slice(0, 6)
     setOtp(numericValue)
-    
     // Clear error when user starts typing
     if (error) {
       setError('')
     }
   }
 
+  const handleInputEmailChange = (email: string) => {
+    setEmail(email)
+  }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -46,14 +48,8 @@ export const VerifyOtp: React.FC = () => {
       return
     }
 
-    if (otp.length !== 6) {
-      setError('O código deve ter 6 dígitos')
-      setIsLoading(false)
-      return
-    }
-
     try {
-      const result = await AuthService.verifyOtp(email, otp)
+      const result = await AuthService.verifyOtp(email, Number(otp))
 
       setIsLoading(false)
 
@@ -62,7 +58,7 @@ export const VerifyOtp: React.FC = () => {
 
         // Navegar para tela de nova senha após 1 segundo
         setTimeout(() => {
-          navigate('/reset-password', { state: { email, otp } })
+          navigate('/login')
         }, 1000)
       } else {
         setError(result.error || 'Código inválido. Tente novamente.')
@@ -116,6 +112,8 @@ export const VerifyOtp: React.FC = () => {
 
         <form className="verify-otp-form" onSubmit={handleSubmit}>
           <div className="form-group">
+            <label className='form-label'>E-mail</label>
+            <input type="text" className='form-input otp-input' value={email} onChange={(e) => handleInputEmailChange(e.target.value)}/>
             <label className="form-label">Código de verificação</label>
             <input
               type="text"
