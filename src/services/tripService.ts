@@ -164,6 +164,89 @@ export class TripService {
     }
   }
 
+  static async getTripsByUserEmail(email: string): Promise<GetTripsResult> {
+  try {
+    const response = await fetch(
+      buildApiUrl(`${API_CONFIG.ENDPOINTS.GETTRIPBYUSEREMAIL}/${email}`),
+      {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      }
+    );
+
+    let responseData: any;
+    try {
+      responseData = await response.json();
+      console.log('Resposta da API - Body:', responseData);
+    } catch (parseError) {
+      console.error('Erro ao fazer parse da resposta:', parseError);
+      return {
+        success: false,
+        error: 'Resposta inválida do servidor. Tente novamente.'
+      };
+    }
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return {
+          success: false,
+          error: 'Sessão expirada. Faça login novamente.'
+        };
+      }
+
+      if (response.status === 403) {
+        return {
+          success: false,
+          error: 'Você não tem permissão para visualizar viagens.'
+        };
+      }
+
+      if (response.status === 404) {
+        // 404 pode significar que não há viagens, retornar lista vazia
+        console.log('No trips found (404), returning empty array');
+        return {
+          success: true,
+          data: []
+        };
+      }
+
+      const errorMessage = getHttpErrorMessage(response.status, responseData?.message);
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+
+    // Success case
+    if (responseData.isSuccess) {
+      console.log('Viagens carregadas com sucesso:', responseData.data);
+      return {
+        success: true,
+        data: responseData.data || []
+      };
+    } else {
+      return {
+        success: false,
+        error: responseData.message || 'Erro desconhecido do servidor'
+      };
+    }
+  } catch (error: any) {
+    console.error('Erro na requisição:', error);
+
+    if (isNetworkError(error) || isParseError(error)) {
+      return {
+        success: false,
+        error: getConnectionErrorMessage(error)
+      };
+    }
+
+    return {
+      success: false,
+      error: 'Erro inesperado. Tente novamente.'
+    };
+  }
+}
+
   static async getTrips(): Promise<GetTripsResult> {
     try {
       console.log('Buscando viagens do usuário...')

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react'
 import './TripCard.css'
 import type { TripApiResponse } from '../../config/api'
@@ -113,7 +114,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip, onEdit, onDelete }) =>
 
         <div className="trip-card-budget">
           <span className="budget-label">Orçamento:</span>
-          <span className="budget-value">{formatCurrency(trip.budget)}</span>
+          <span className="budget-value">{formatCurrency(trip.tripBudget)}</span>
         </div>
 
         {trip.notes && trip.notes.length > 0 && (

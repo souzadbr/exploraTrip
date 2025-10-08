@@ -11,7 +11,8 @@ export const API_CONFIG = {
     VERIFY_OTP: '/user/confirmCode', // POST - Verificar código OTP
     RESET_PASSWORD: '/user/resetPassword', // POST - Redefinir senha
     TRIP: '/trip', // POST/GET - Operações de viagem
-    GETUSERBYEMAIL: '/user/getUserByEmail' // GET - Pega o usuário pelo e-mail
+    GETUSERBYEMAIL: '/user/getUserByEmail', // GET - Pega o usuário pelo e-mail
+    GETTRIPBYUSEREMAIL: '/trip/userTrips'
   }
 }
 
@@ -56,7 +57,7 @@ export interface TripApiData {
   name: string
   startDate: string
   endDate: string
-  budget: number
+  tripBudget: number
   notes: string[]
   userRoles: Array<{
     userEmail: string
@@ -69,7 +70,7 @@ export interface TripApiResponse {
   name: string
   startDate: string
   endDate: string
-  budget: number
+  tripBudget: number
   notes: string[]
   userRoles: Array<{
     userEmail: string

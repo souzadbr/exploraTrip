@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './CreateTrip.css'
 import logoHome from '../../assets/logo-home.png'
@@ -57,17 +57,15 @@ export const CreateTrip: React.FC = () => {
   const [editingTrip, setEditingTrip] = useState<TripApiResponse | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
 
-  // Carregar viagens ao montar o componente
-  useEffect(() => {
-    loadTrips()
-  }, [])
+  
 
-  const loadTrips = async () => {
+  const loadTrips = useCallback (async () => {
+    if (!currentUser) return;
     setIsLoadingTrips(true)
     setTripsError('')
 
     try {
-      const result = await TripService.getTrips()
+      const result = await TripService.getTripsByUserEmail(currentUser!)
       console.log('Result from getTrips:', result)
 
       if (result.success) {
@@ -84,7 +82,12 @@ export const CreateTrip: React.FC = () => {
     } finally {
       setIsLoadingTrips(false)
     }
-  }
+  }, [currentUser])
+
+  // Carregar viagens ao montar o componente
+  useEffect(() => {
+    loadTrips()
+  }, [loadTrips])
 
   const handleInputChange = (field: keyof TripFormData, value: string | number) => {
     // Handle budget field specifically to ensure it's a valid number
@@ -200,7 +203,7 @@ export const CreateTrip: React.FC = () => {
         name: formData.name.trim(),
         startDate: convertToISOString(formData.startDate),
         endDate: convertToISOString(formData.endDate),
-        budget: formData.budget,
+        tripBudget: formData.budget,
         notes: formData.notes,
         userRoles: formData.userRoles
       }
@@ -540,7 +543,15 @@ export const CreateTrip: React.FC = () => {
               {trips.map((trip) => (
                 <TripCard
                   key={trip.id}
-                  trip={trip}
+                  trip={{
+                    id: trip.id,
+                    name: trip.name,
+                    startDate: trip.startDate,
+                    endDate: trip.endDate,
+                    tripBudget: trip.tripBudget ?? 0,
+                    notes: trip.notes ?? [],
+                    userRoles: trip.userRoles ?? []
+                  }}
                   onEdit={handleEditTrip}
                   onDelete={handleDeleteTrip}
                 />
