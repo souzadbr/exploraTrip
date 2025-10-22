@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import './TripCard.css'
 import type { TripApiResponse } from '../../config/api'
+import { formatCurrencyDisplay } from '../../utils/currencyUtils'
+import { logger } from '../../utils/logger'
 
 interface TripCardProps {
   trip: TripApiResponse
@@ -10,8 +13,10 @@ interface TripCardProps {
 }
 
 export const TripCard: React.FC<TripCardProps> = ({ trip, onEdit, onDelete }) => {
-  // Debug log to check trip data
-  console.log('TripCard received trip data:', trip)
+  const navigate = useNavigate()
+
+  logger.log('TripCard received trip data:', trip)
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('pt-BR', {
@@ -19,39 +24,6 @@ export const TripCard: React.FC<TripCardProps> = ({ trip, onEdit, onDelete }) =>
       month: '2-digit',
       year: 'numeric'
     })
-  }
-
-  const formatCurrency = (amount: any) => {
-    console.log('Formatting currency for amount:', amount, 'type:', typeof amount)
-
-    // Verificar se o valor é válido
-    if (amount === null || amount === undefined) {
-      console.log('Amount is null or undefined, returning default')
-      return 'R$ 0,00'
-    }
-
-    // Converter para número se for string
-    let numericAmount: number
-    if (typeof amount === 'string') {
-      numericAmount = parseFloat(amount)
-    } else if (typeof amount === 'number') {
-      numericAmount = amount
-    } else {
-      console.log('Amount is not string or number, returning default')
-      return 'R$ 0,00'
-    }
-
-    // Verificar se a conversão foi bem-sucedida
-    if (isNaN(numericAmount)) {
-      console.log('Amount is NaN after conversion, returning default')
-      return 'R$ 0,00'
-    }
-
-    console.log('Successfully formatting amount:', numericAmount)
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(numericAmount)
   }
 
   const getDuration = () => {
@@ -114,7 +86,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip, onEdit, onDelete }) =>
 
         <div className="trip-card-budget">
           <span className="budget-label">Orçamento:</span>
-          <span className="budget-value">{formatCurrency(trip.tripBudget)}</span>
+          <span className="budget-value">{formatCurrencyDisplay(trip.tripBudget)}</span>
         </div>
 
         {trip.notes && trip.notes.length > 0 && (
@@ -149,7 +121,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip, onEdit, onDelete }) =>
       </div>
 
       <div className="trip-card-footer">
-        <button className="trip-card-view-btn" onClick={handleEdit}>
+        <button className="trip-card-view-btn" onClick={() => navigate(`/trip/${trip.id}`)}>
           Ver Detalhes
         </button>
       </div>

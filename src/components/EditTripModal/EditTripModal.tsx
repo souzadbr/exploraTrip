@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import './EditTripModal.css'
 import type { TripApiData, TripApiResponse } from '../../config/api'
+import { formatCurrencyInput, parseCurrencyInput } from '../../utils/currencyUtils'
+import { validateEmail, isStartBeforeEnd } from '../../utils/validationUtils'
+import { logger } from '../../utils/logger'
 
 interface UserRole {
   userEmail: string
@@ -11,7 +14,7 @@ interface TripFormData {
   name: string
   startDate: string
   endDate: string
-  budget: number
+  budget: number | null
   notes: string[]
   userRoles: UserRole[]
 }
@@ -36,14 +39,16 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
     name: '',
     startDate: '',
     endDate: '',
-    budget: 0,
+    budget: null,
     notes: [],
     userRoles: []
   })
 
+  const [budgetDisplay, setBudgetDisplay] = useState('')
   const [currentNote, setCurrentNote] = useState('')
   const [currentUserEmail, setCurrentUserEmail] = useState('')
   const [error, setError] = useState('')
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   // Helper function to convert ISO date to input date format
   const formatDateForInput = (isoDate: string): string => {
@@ -55,7 +60,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
       // Format as YYYY-MM-DD for date input
       return date.toISOString().split('T')[0]
     } catch (error) {
-      console.error('Error formatting date:', error)
+      logger.error('Error formatting date:', error)
       return ''
     }
   }
@@ -63,25 +68,41 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   // Populate form when trip changes
   useEffect(() => {
     if (trip) {
+      const tripBudget = trip.tripBudget ?? null
       setFormData({
         name: trip.name || '',
         startDate: formatDateForInput(trip.startDate),
         endDate: formatDateForInput(trip.endDate),
-        budget: trip.budget || 0,
+        budget: tripBudget,
         notes: trip.notes || [],
         userRoles: trip.userRoles || []
       })
+
+      // Format budget for display
+      if (tripBudget !== null) {
+        setBudgetDisplay(formatCurrencyInput(tripBudget.toString().replace('.', '')))
+      } else {
+        setBudgetDisplay('')
+      }
+
+      setHasUnsavedChanges(false)
     }
   }, [trip])
 
-  const handleInputChange = (field: keyof TripFormData, value: string | number) => {
-    // Handle budget field specifically to ensure it's a valid number
-    if (field === 'budget') {
-      const numericValue = typeof value === 'string' ? parseFloat(value) : value
-      setFormData(prev => ({ ...prev, [field]: isNaN(numericValue) ? 0 : numericValue }))
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }))
-    }
+  const handleInputChange = (field: keyof TripFormData, value: string | number | null) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    setHasUnsavedChanges(true)
+    if (error) setError('')
+  }
+
+  const handleBudgetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const formatted = formatCurrencyInput(value)
+    setBudgetDisplay(formatted)
+
+    const numericValue = parseCurrencyInput(formatted)
+    setFormData(prev => ({ ...prev, budget: numericValue }))
+    setHasUnsavedChanges(true)
     if (error) setError('')
   }
 
@@ -103,13 +124,30 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   }
 
   const addParticipant = () => {
-    if (currentUserEmail.trim() && !formData.userRoles.some(ur => ur.userEmail === currentUserEmail.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        userRoles: [...prev.userRoles, { userEmail: currentUserEmail.trim(), role: 1 }]
-      }))
-      setCurrentUserEmail('')
+    const email = currentUserEmail.trim()
+
+    if (!email) {
+      setError('Email não pode estar vazio')
+      return
     }
+
+    if (!validateEmail(email)) {
+      setError('Formato de email inválido')
+      return
+    }
+
+    if (formData.userRoles.some(ur => ur.userEmail === email)) {
+      setError('Este participante já foi adicionado')
+      return
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      userRoles: [...prev.userRoles, { userEmail: email, role: 1 }]
+    }))
+    setCurrentUserEmail('')
+    setHasUnsavedChanges(true)
+    setError('')
   }
 
   const removeParticipant = (index: number) => {
@@ -134,21 +172,14 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
     }
 
     // Validate dates
-    const startDate = new Date(formData.startDate)
-    const endDate = new Date(formData.endDate)
-
-    if (isNaN(startDate.getTime())) {
-      setError('Data de início inválida')
-      return false
-    }
-
-    if (isNaN(endDate.getTime())) {
-      setError('Data de fim inválida')
-      return false
-    }
-
-    if (startDate >= endDate) {
+    if (!isStartBeforeEnd(formData.startDate, formData.endDate)) {
       setError('Data de fim deve ser posterior à data de início')
+      return false
+    }
+
+    // Validate budget
+    if (formData.budget !== null && formData.budget < 0) {
+      setError('Orçamento não pode ser negativo')
       return false
     }
 
@@ -167,7 +198,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
         const date = new Date(dateString + 'T00:00:00.000Z')
         return date.toISOString()
       } catch (error) {
-        console.error('Error converting date to ISO:', error)
+        logger.error('Error converting date to ISO:', error)
         return new Date().toISOString()
       }
     }
@@ -176,22 +207,31 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
       name: formData.name.trim(),
       startDate: convertToISOString(formData.startDate),
       endDate: convertToISOString(formData.endDate),
-      budget: formData.budget,
+      tripBudget: formData.budget,
       notes: formData.notes,
       userRoles: formData.userRoles
     }
 
     try {
       await onSave(trip.id, tripData)
+      setHasUnsavedChanges(false)
       onClose()
     } catch (error) {
-      console.error('Erro ao salvar viagem:', error)
+      logger.error('Erro ao salvar viagem:', error)
     }
   }
 
   const handleClose = () => {
-    setError('')
-    onClose()
+    if (hasUnsavedChanges) {
+      if (window.confirm('Você tem alterações não salvas. Deseja realmente fechar?')) {
+        setError('')
+        setHasUnsavedChanges(false)
+        onClose()
+      }
+    } else {
+      setError('')
+      onClose()
+    }
   }
 
   if (!isOpen || !trip) return null
@@ -249,15 +289,14 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
 
           {/* Orçamento */}
           <div className="form-group">
-            <label className="form-label">Orçamento (R$)</label>
+            <label className="form-label">Orçamento</label>
             <input
-              type="number"
+              type="text"
               className="form-input"
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              value={formData.budget}
-              onChange={(e) => handleInputChange('budget', parseFloat(e.target.value) || 0)}
+              placeholder="R$ 0,00"
+              value={budgetDisplay}
+              onChange={handleBudgetChange}
+              maxLength={20}
             />
           </div>
 
@@ -272,8 +311,14 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
                 value={currentNote}
                 onChange={(e) => setCurrentNote(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addNote())}
+                maxLength={500}
               />
-              <button type="button" className="add-btn" onClick={addNote}>
+              <button
+                type="button"
+                className="add-btn"
+                onClick={addNote}
+                disabled={!currentNote.trim()}
+              >
                 Adicionar
               </button>
             </div>
@@ -300,8 +345,14 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
                 value={currentUserEmail}
                 onChange={(e) => setCurrentUserEmail(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addParticipant())}
+                maxLength={100}
               />
-              <button type="button" className="add-btn" onClick={addParticipant}>
+              <button
+                type="button"
+                className="add-btn"
+                onClick={addParticipant}
+                disabled={!currentUserEmail.trim()}
+              >
                 Adicionar
               </button>
             </div>

@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import logoHome from '../../assets/logo-home.png';
 import { AuthService } from '../../services/authService';
+import { TripService } from '../../services/tripService';
+import { TripCard } from '../../components/TripCard/TripCard';
+import type { TripApiResponse } from '../../config/api';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +14,12 @@ export const Dashboard: React.FC = () => {
   const userEmail = AuthService.getUserData();
   // const userData = await AuthService.getByEmail(userEmail!);
   const [userName, setUserName] = useState<string>('Usuário');
+
+  // Estados para gerenciar viagens
+  const [trips, setTrips] = useState<TripApiResponse[]>([]);
+  const [isLoadingTrips, setIsLoadingTrips] = useState(false);
+  const [tripsError, setTripsError] = useState('');
+
   useEffect(() => {
       const fetchUser = async () => {
         if (userEmail) {
@@ -23,6 +32,56 @@ export const Dashboard: React.FC = () => {
       };
       fetchUser();
     }, [userEmail]);
+  // Função para carregar viagens do usuário
+  const loadTrips = useCallback(async () => {
+    if (!userEmail) return;
+
+    setIsLoadingTrips(true);
+    setTripsError('');
+
+    try {
+      const result = await TripService.getTripsByUserEmail(userEmail);
+
+      if (result.success) {
+        // Pegar apenas as 3 primeiras viagens para o dashboard
+        setTrips(result.data?.slice(0, 3) || []);
+      } else {
+        setTripsError(result.error || 'Erro ao carregar viagens');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar viagens:', error);
+      setTripsError('Erro inesperado ao carregar viagens');
+    } finally {
+      setIsLoadingTrips(false);
+    }
+  }, [userEmail]);
+
+  // Função para excluir viagem
+  const handleDeleteTrip = async (tripId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta viagem?')) {
+      return;
+    }
+
+    try {
+      const result = await TripService.deleteTrip(tripId);
+
+      if (result.success) {
+        // Recarregar viagens após exclusão
+        loadTrips();
+      } else {
+        alert('Erro ao excluir viagem: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir viagem:', error);
+      alert('Erro inesperado ao excluir viagem');
+    }
+  };
+
+  // Carregar viagens ao montar o componente
+  useEffect(() => {
+    loadTrips();
+  }, [loadTrips]);
+
   const handleLogout = () => {
     // Limpar dados de autenticação usando o AuthService
     AuthService.clearAuthData();
@@ -40,10 +99,46 @@ export const Dashboard: React.FC = () => {
         <div className="header-content">
           <img src={logoHome} alt="Explora Trip" className="logo" />
           <nav className="nav-menu">
-            <a href="#" className="nav-link">Minhas Viagens</a>
-            <a href="#" className="nav-link">Roteiros</a>
-            <a href="#" className="nav-link">Gastos</a>
-            <a href="#" className="nav-link">Perfil</a>
+            <a
+              href="#"
+              className="nav-link"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/create-trip');
+              }}
+            >
+              Minhas Viagens
+            </a>
+            <a
+              href="#"
+              className="nav-link"
+              onClick={(e) => {
+                e.preventDefault();
+                alert('Funcionalidade de Roteiros em desenvolvimento');
+              }}
+            >
+              Roteiros
+            </a>
+            <a
+              href="#"
+              className="nav-link"
+              onClick={(e) => {
+                e.preventDefault();
+                alert('Funcionalidade de Gastos em desenvolvimento');
+              }}
+            >
+              Gastos
+            </a>
+            <a
+              href="#"
+              className="nav-link"
+              onClick={(e) => {
+                e.preventDefault();
+                alert('Funcionalidade de Perfil em desenvolvimento');
+              }}
+            >
+              Perfil
+            </a>
           </nav>
           <div className="user-section">
             <span className="user-name">Olá, {userName}</span>
@@ -98,6 +193,56 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Minhas Viagens */}
+        <section className="my-trips-section">
+          <div className="section-header">
+            <h2 className="section-title">Minhas Viagens</h2>
+            <button
+              className="view-all-btn"
+              onClick={() => navigate('/create-trip')}
+            >
+              Ver Todas →
+            </button>
+          </div>
+
+          {isLoadingTrips ? (
+            <div className="trips-loading">
+              <div className="loading-spinner"></div>
+              <span>Carregando viagens...</span>
+            </div>
+          ) : tripsError ? (
+            <div className="trips-error">
+              <p>{tripsError}</p>
+              <button onClick={loadTrips} className="retry-btn">
+                Tentar Novamente
+              </button>
+            </div>
+          ) : trips.length === 0 ? (
+            <div className="trips-empty">
+              <div className="empty-icon">✈️</div>
+              <h3>Nenhuma viagem cadastrada</h3>
+              <p>Comece a planejar sua primeira aventura!</p>
+              <button
+                className="create-first-trip-btn"
+                onClick={handleCreateTrip}
+              >
+                Criar Primeira Viagem
+              </button>
+            </div>
+          ) : (
+            <div className="trips-grid">
+              {trips.map((trip) => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  onEdit={() => navigate('/create-trip')}
+                  onDelete={handleDeleteTrip}
+                />
+              ))}
+            </div>
+          )}
         </section>
       </main>
     </div>

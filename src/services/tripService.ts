@@ -514,4 +514,83 @@ export class TripService {
     }
   }
 
+  static async getTripById(tripId: string): Promise<CreateTripResult> {
+    try {
+      console.log('Buscando viagem por ID:', tripId)
+
+      const response = await fetch(buildApiUrl(`${API_CONFIG.ENDPOINTS.TRIP}/${tripId}`), {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      })
+
+      console.log('Resposta da API - Status:', response.status)
+
+      let responseData: any
+      try {
+        responseData = await response.json()
+        console.log('Resposta da API - Body:', responseData)
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError)
+        return {
+          success: false,
+          error: 'Resposta inválida do servidor.',
+          fieldErrors: {}
+        }
+      }
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return {
+            success: false,
+            error: 'Viagem não encontrada.',
+            fieldErrors: {}
+          }
+        }
+
+        if (response.status === 401) {
+          return {
+            success: false,
+            error: 'Não autorizado. Faça login novamente.',
+            fieldErrors: {}
+          }
+        }
+
+        return {
+          success: false,
+          error: getHttpErrorMessage(response.status),
+          fieldErrors: {}
+        }
+      }
+
+      if (responseData.isSuccess && responseData.data) {
+        return {
+          success: true,
+          data: responseData.data
+        }
+      }
+
+      return {
+        success: false,
+        error: 'Resposta inesperada do servidor.',
+        fieldErrors: {}
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar viagem:', error)
+
+      if (isNetworkError(error)) {
+        return {
+          success: false,
+          error: getConnectionErrorMessage(),
+          fieldErrors: {}
+        }
+      }
+
+      return {
+        success: false,
+        error: error.message || 'Erro inesperado ao buscar viagem.',
+        fieldErrors: {}
+      }
+    }
+  }
+
 }

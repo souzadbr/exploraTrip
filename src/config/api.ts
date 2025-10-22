@@ -12,7 +12,8 @@ export const API_CONFIG = {
     RESET_PASSWORD: '/user/resetPassword', // POST - Redefinir senha
     TRIP: '/trip', // POST/GET - Operações de viagem
     GETUSERBYEMAIL: '/user/getUserByEmail', // GET - Pega o usuário pelo e-mail
-    GETTRIPBYUSEREMAIL: '/trip/userTrips'
+    GETTRIPBYUSEREMAIL: '/trip/userTrips',
+    LOCAL: '/local' // POST/GET/PUT/DELETE - Operações de local/roteiro
   }
 }
 
@@ -76,4 +77,24 @@ export interface TripApiResponse {
     userEmail: string
     role: number
   }>
+}
+
+// Local specific interfaces
+export interface LocalApiData {
+  localName: string
+  dateStart: string | null
+  dateEnd: string | null
+  tripId: string
+  localBudget: number | null
+  notes: string[] | null
+}
+
+export interface LocalApiResponse {
+  localId: string
+  localName: string
+  dateStart: string | null
+  dateEnd: string | null
+  tripId?: string // Opcional - Backend não retorna este campo no ViewLocalDTO
+  localBudget: number | null
+  notes: string[] | null
 }

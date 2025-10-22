@@ -7,6 +7,10 @@ import type { TripApiData, TripApiResponse } from '../../config/api'
 import { TripCard } from '../../components/TripCard/TripCard'
 import { EditTripModal } from '../../components/EditTripModal/EditTripModal'
 import { AuthService } from '../../services/authService'
+import { formatCurrencyInput, parseCurrencyInput } from '../../utils/currencyUtils'
+import { validateEmail, isStartBeforeEnd } from '../../utils/validationUtils'
+import { logger } from '../../utils/logger'
+import { Toast } from '../../components/Toast/Toast'
 
 interface UserRole {
   userEmail: string
@@ -17,7 +21,7 @@ interface TripFormData {
   name: string
   startDate: string
   endDate: string
-  budget: number
+  budget: number | null
   notes: string[]
   userRoles: UserRole[]
 }
@@ -29,12 +33,13 @@ export const CreateTrip: React.FC = () => {
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({})
+  const [toast, setToast] = useState<{message: string, type: 'success'|'error'|'info'} | null>(null)
 
   const [formData, setFormData] = useState<TripFormData>({
     name: '',
     startDate: '',
     endDate: '',
-    budget: 0,
+    budget: null,
     notes: [],
     userRoles: [
       {
@@ -44,6 +49,7 @@ export const CreateTrip: React.FC = () => {
     ]
   })
 
+  const [budgetDisplay, setBudgetDisplay] = useState('')
   const [currentNote, setCurrentNote] = useState('')
   const [currentUserEmail, setCurrentUserEmail] = useState('')
 
@@ -66,18 +72,18 @@ export const CreateTrip: React.FC = () => {
 
     try {
       const result = await TripService.getTripsByUserEmail(currentUser!)
-      console.log('Result from getTrips:', result)
+      logger.log('Result from getTrips:', result)
 
       if (result.success) {
         const trips = result.data || []
-        console.log('Setting trips:', trips)
+        logger.log('Setting trips:', trips)
         setTrips(trips)
       } else {
-        console.error('Error loading trips:', result.error)
+        logger.error('Error loading trips:', result.error)
         setTripsError(result.error || 'Erro ao carregar viagens')
       }
     } catch (error) {
-      console.error('Erro ao carregar viagens:', error)
+      logger.error('Erro ao carregar viagens:', error)
       setTripsError('Erro inesperado ao carregar viagens')
     } finally {
       setIsLoadingTrips(false)
@@ -89,18 +95,26 @@ export const CreateTrip: React.FC = () => {
     loadTrips()
   }, [loadTrips])
 
-  const handleInputChange = (field: keyof TripFormData, value: string | number) => {
-    // Handle budget field specifically to ensure it's a valid number
-    if (field === 'budget') {
-      const numericValue = typeof value === 'string' ? parseFloat(value) : value
-      setFormData(prev => ({ ...prev, [field]: isNaN(numericValue) ? 0 : numericValue }))
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }))
-    }
+  const handleInputChange = (field: keyof TripFormData, value: string | number | null) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
 
     if (error) setError('')
     if (fieldErrors[field]) {
       setFieldErrors(prev => ({ ...prev, [field]: '' }))
+    }
+  }
+
+  const handleBudgetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const formatted = formatCurrencyInput(value)
+    setBudgetDisplay(formatted)
+
+    const numericValue = parseCurrencyInput(formatted)
+    setFormData(prev => ({ ...prev, budget: numericValue }))
+
+    if (error) setError('')
+    if (fieldErrors.budget) {
+      setFieldErrors(prev => ({ ...prev, budget: '' }))
     }
   }
 
@@ -122,17 +136,33 @@ export const CreateTrip: React.FC = () => {
   }
 
   const addUserRole = () => {
-    if (currentUserEmail.trim()) {
-      const newUserRole: UserRole = {
-        userEmail: currentUserEmail.trim(),
-        role: 1 // Default role
-      }
-      setFormData(prev => ({
-        ...prev,
-        userRoles: [...prev.userRoles, newUserRole]
-      }))
-      setCurrentUserEmail('')
+    const email = currentUserEmail.trim()
+
+    if (!email) {
+      setError('Email não pode estar vazio')
+      return
     }
+
+    if (!validateEmail(email)) {
+      setError('Formato de email inválido')
+      return
+    }
+
+    if (formData.userRoles.some(ur => ur.userEmail === email)) {
+      setError('Este participante já foi adicionado')
+      return
+    }
+
+    const newUserRole: UserRole = {
+      userEmail: email,
+      role: 1
+    }
+    setFormData(prev => ({
+      ...prev,
+      userRoles: [...prev.userRoles, newUserRole]
+    }))
+    setCurrentUserEmail('')
+    setError('')
   }
 
   const removeUserRole = (index: number) => {
@@ -157,21 +187,14 @@ export const CreateTrip: React.FC = () => {
     }
 
     // Validate dates
-    const startDate = new Date(formData.startDate)
-    const endDate = new Date(formData.endDate)
-
-    if (isNaN(startDate.getTime())) {
-      setError('Data de início inválida')
-      return false
-    }
-
-    if (isNaN(endDate.getTime())) {
-      setError('Data de fim inválida')
-      return false
-    }
-
-    if (startDate >= endDate) {
+    if (!isStartBeforeEnd(formData.startDate, formData.endDate)) {
       setError('Data de fim deve ser posterior à data de início')
+      return false
+    }
+
+    // Validate budget
+    if (formData.budget !== null && formData.budget < 0) {
+      setError('Orçamento não pode ser negativo')
       return false
     }
 
@@ -208,7 +231,7 @@ export const CreateTrip: React.FC = () => {
         userRoles: formData.userRoles
       }
 
-      console.log('Enviando dados da viagem:', tripData)
+      logger.log('Enviando dados da viagem:', tripData)
 
       // Chamar API para criar viagem
       const result = await TripService.createTrip(tripData)
@@ -217,7 +240,8 @@ export const CreateTrip: React.FC = () => {
 
       if (result.success) {
         setSuccessMessage('Viagem criada com sucesso!')
-        console.log('Viagem criada:', result.data)
+        setToast({ message: 'Viagem criada com sucesso!', type: 'success' })
+        logger.log('Viagem criada:', result.data)
 
         // Adicionar a nova viagem à lista
         if (result.data) {
@@ -229,10 +253,16 @@ export const CreateTrip: React.FC = () => {
           name: '',
           startDate: '',
           endDate: '',
-          budget: 0,
+          budget: null,
           notes: [],
-          userRoles: []
+          userRoles: [
+            {
+              userEmail: currentUser!,
+              role: 1
+            }
+          ]
         })
+        setBudgetDisplay('')
         setCurrentNote('')
         setCurrentUserEmail('')
 
@@ -255,8 +285,9 @@ export const CreateTrip: React.FC = () => {
       }
 
     } catch (error) {
-      console.error('Erro inesperado:', error)
+      logger.error('Erro inesperado:', error)
       setError('Erro inesperado ao criar viagem. Tente novamente.')
+      setToast({ message: 'Erro inesperado ao criar viagem', type: 'error' })
       setIsLoading(false)
     }
   }
@@ -298,14 +329,17 @@ export const CreateTrip: React.FC = () => {
         ))
 
         setSuccessMessage('Viagem atualizada com sucesso!')
+        setToast({ message: 'Viagem atualizada com sucesso!', type: 'success' })
         setTimeout(() => setSuccessMessage(''), 3000)
       } else {
         setError(result.error || 'Erro ao atualizar viagem')
+        setToast({ message: result.error || 'Erro ao atualizar viagem', type: 'error' })
         setTimeout(() => setError(''), 5000)
       }
     } catch (error) {
-      console.error('Erro ao atualizar viagem:', error)
+      logger.error('Erro ao atualizar viagem:', error)
       setError('Erro inesperado ao atualizar viagem')
+      setToast({ message: 'Erro inesperado ao atualizar viagem', type: 'error' })
       setTimeout(() => setError(''), 5000)
     } finally {
       setIsUpdating(false)
@@ -320,14 +354,17 @@ export const CreateTrip: React.FC = () => {
         // Remover a viagem da lista
         setTrips(prev => prev.filter(trip => trip.id !== tripId))
         setSuccessMessage('Viagem excluída com sucesso!')
+        setToast({ message: 'Viagem excluída com sucesso!', type: 'success' })
         setTimeout(() => setSuccessMessage(''), 3000)
       } else {
         setError(result.error || 'Erro ao excluir viagem')
+        setToast({ message: result.error || 'Erro ao excluir viagem', type: 'error' })
         setTimeout(() => setError(''), 5000)
       }
     } catch (error) {
-      console.error('Erro ao excluir viagem:', error)
+      logger.error('Erro ao excluir viagem:', error)
       setError('Erro inesperado ao excluir viagem')
+      setToast({ message: 'Erro inesperado ao excluir viagem', type: 'error' })
       setTimeout(() => setError(''), 5000)
     }
   }
@@ -396,15 +433,14 @@ export const CreateTrip: React.FC = () => {
 
             {/* Orçamento */}
             <div className="form-group">
-              <label className="form-label">Orçamento (R$)</label>
+              <label className="form-label">Orçamento</label>
               <input
-                type="number"
+                type="text"
                 className={`form-input ${fieldErrors.budget ? 'error' : ''}`}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                value={formData.budget}
-                onChange={(e) => handleInputChange('budget', parseFloat(e.target.value) || 0)}
+                placeholder="R$ 0,00"
+                value={budgetDisplay}
+                onChange={handleBudgetChange}
+                maxLength={20}
               />
               {fieldErrors.budget && (
                 <span className="field-error-message">{fieldErrors.budget}</span>
@@ -422,8 +458,14 @@ export const CreateTrip: React.FC = () => {
                   value={currentNote}
                   onChange={(e) => setCurrentNote(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addNote())}
+                  maxLength={500}
                 />
-                <button type="button" className="add-btn" onClick={addNote}>
+                <button
+                  type="button"
+                  className="add-btn"
+                  onClick={addNote}
+                  disabled={!currentNote.trim()}
+                >
                   Adicionar
                 </button>
               </div>
@@ -452,8 +494,14 @@ export const CreateTrip: React.FC = () => {
                   value={currentUserEmail}
                   onChange={(e) => setCurrentUserEmail(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addUserRole())}
+                  maxLength={100}
                 />
-                <button type="button" className="add-btn" onClick={addUserRole}>
+                <button
+                  type="button"
+                  className="add-btn"
+                  onClick={addUserRole}
+                  disabled={!currentUserEmail.trim()}
+                >
                   Convidar
                 </button>
               </div>
@@ -569,6 +617,15 @@ export const CreateTrip: React.FC = () => {
         onSave={handleSaveTrip}
         isLoading={isUpdating}
       />
+
+      {/* Toast de Feedback */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   )
 }

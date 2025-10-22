@@ -4,6 +4,7 @@ import { Register } from './screens/register/Register'
 import { Login } from './screens/login/Login'
 import { Dashboard } from './screens/dashboard'
 import { CreateTrip } from './screens/create-trip'
+import { TripDetails } from './screens/trip-details'
 import { ForgotPassword } from './screens/forgot-password'
 import { VerifyOtp } from './screens/verify-otp'
 import { VerifyRegistration } from './screens/verify-registration'
@@ -34,6 +35,14 @@ function App() {
           element={
             <ProtectedRoute>
               <CreateTrip />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trip/:tripId"
+          element={
+            <ProtectedRoute>
+              <TripDetails />
             </ProtectedRoute>
           }
         />

@@ -1,0 +1,2 @@
+export { LocalCard } from './LocalCard'
+
