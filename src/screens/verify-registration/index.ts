@@ -1,0 +1,1 @@
+export { VerifyRegistration } from './VerifyRegistration'

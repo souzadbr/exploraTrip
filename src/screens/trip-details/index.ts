@@ -1,0 +1,2 @@
+export { TripDetails } from './TripDetails'
+

@@ -1,8 +1,15 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import logo from '../../assets/logo.png'
-import banner from '../../assets/banner.png'
 import './Register.css'
+import {
+  // mapApiFieldErrors,
+  inferFieldFromErrorMessage,
+  getHttpErrorMessage,
+  getConnectionErrorMessage
+} from '../../utils/apiErrorHandler'
+import { AuthService } from '../../services/authService'
+// import { buildApiUrl, API_CONFIG } from '../../config/api'
 
 interface FormData {
   fullName: string
@@ -18,6 +25,8 @@ interface FormErrors {
   confirmPassword?: string
 }
 
+
+
 interface ApiResponse {
   data: {
     id: string
@@ -29,7 +38,40 @@ interface ApiResponse {
   message: string
 }
 
+interface ApiErrorResponse {
+  data: null
+  isSuccess: false
+  message: string
+  errors?: {
+    [field: string]: string[]
+  }
+}
+
+interface ValidationErrorResponse {
+  type: string
+  title: string
+  status: number
+  errors: {
+    [field: string]: string[]
+  }
+  traceId: string
+}
+
+interface ServerErrorResponse {
+  title: string
+  status: number
+}
+
 export const Register: React.FC = () => {
+  const navigate = useNavigate()
+
+  // Verifica se o usuário já está autenticado ao carregar o componente
+  useEffect(() => {
+    if (AuthService.isAuthenticated()) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [navigate])
+
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
@@ -40,8 +82,13 @@ export const Register: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({})
   const [showPasswordRequirements, setShowPasswordRequirements] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showResendOption, setShowResendOption] = useState(false)
+
+  // Estados para confirmação de código
+
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // Regex patterns
@@ -117,54 +164,111 @@ export const Register: React.FC = () => {
 
   const registerUser = async (userData: { name: string; emailVal: string; password: string }) => {
     try {
-      console.log('Enviando dados para API:', userData)
+      // Converter para o formato esperado pelo backend (campos com maiúscula)
+      const backendData = {
+        Name: userData.name,
+        EmailVal: userData.emailVal,
+        Password: userData.password
+      }
+
+      console.log('Enviando dados para API:', backendData)
 
       const response = await fetch('http://localhost:5052/api/user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify(backendData),
       })
 
       console.log('Resposta da API - Status:', response.status)
       console.log('Resposta da API - Headers:', response.headers)
 
-      if (!response.ok) {
-        if (response.status === 400) {
-          return { success: false, error: 'Dados inválidos. Verifique as informações fornecidas.' }
-        } else if (response.status === 409) {
-          return { success: false, error: 'Este email já está cadastrado.' }
-        } else if (response.status === 500) {
-          return { success: false, error: 'Erro interno do servidor. Tente novamente mais tarde.' }
+      // Parse response body for both success and error cases
+      let responseData: ApiResponse | ApiErrorResponse | ValidationErrorResponse | ServerErrorResponse
+      try {
+        responseData = await response.json()
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError)
+        return {
+          success: false,
+          error: 'Resposta inválida do servidor. Tente novamente.',
+          fieldErrors: {}
         }
-        throw new Error(`Erro HTTP: ${response.status}`)
       }
 
-      const result: ApiResponse = await response.json()
+      if (!response.ok) {
+        // Handle different error response formats from the API
 
+        if (response.status === 400) {
+          // Check if it's a validation error response (ASP.NET format)
+          if ('errors' in responseData && 'title' in responseData) {
+            const validationError = responseData as ValidationErrorResponse
+            return {
+              success: false,
+              error: validationError.title || 'Dados inválidos fornecidos.',
+              fieldErrors: validationError.errors || {}
+            }
+          }
+
+          // Check if it's a simple API error response
+          if ('isSuccess' in responseData) {
+            const apiError = responseData as ApiErrorResponse
+            return {
+              success: false,
+              error: apiError.message || 'Dados inválidos.',
+              fieldErrors: apiError.errors || {}
+            }
+          }
+        }
+
+        if (response.status === 500) {
+          // Handle server error response - provavelmente email duplicado
+          return {
+            success: false,
+            error: 'Este email já pode estar cadastrado. Se você já se cadastrou antes, vá para "Confirmar Cadastro" para ativar sua conta.',
+            fieldErrors: { email: 'Email pode já estar em uso' },
+            suggestVerification: true
+          }
+        }
+
+        // Fallback for other error types
+        const errorMessage = getHttpErrorMessage(response.status)
+        return {
+          success: false,
+          error: errorMessage,
+          fieldErrors: {}
+        }
+      }
+
+      // Success case
+      const result = responseData as ApiResponse
       if (result.isSuccess) {
-        return { success: true, data: result.data }
+        return { success: true, data: result.data, fieldErrors: {} }
       } else {
-        return { success: false, error: result.message || 'Erro desconhecido do servidor' }
+        return {
+          success: false,
+          error: result.message || 'Erro desconhecido do servidor',
+          fieldErrors: {}
+        }
       }
     } catch (error) {
       console.error('Erro ao registrar usuário:', error)
       console.error('Tipo do erro:', typeof error)
       console.error('Erro detalhado:', error)
 
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        return {
-          success: false,
-          error: 'Não foi possível conectar ao servidor. Verifique se o backend está rodando na porta 5052.'
-        }
-      }
+      // Use utility functions for consistent error handling
+      const errorMessage = getConnectionErrorMessage(error)
+
       return {
         success: false,
-        error: 'Erro de conexão com o servidor. Tente novamente.'
+        error: errorMessage,
+        fieldErrors: {}
       }
     }
   }
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -201,28 +305,78 @@ export const Register: React.FC = () => {
       setIsLoading(false)
 
       if (result.success) {
-        setSuccessMessage('Cadastro realizado com sucesso!')
-        // Reset form
-        setFormData({
-          fullName: '',
-          email: '',
-          password: '',
-          confirmPassword: ''
-        })
-        // Optionally redirect to login after a delay
+        setSuccessMessage('Cadastro realizado com sucesso! Redirecionando para verificação...')
+
+        // Navegar para tela de verificação de cadastro após 2 segundos
         setTimeout(() => {
-          window.location.href = '/login'
+          navigate('/verify-otp')
         }, 2000)
       } else {
-        // Handle API errors
-        if (result.error?.includes('email')) {
-          setErrors(prev => ({ ...prev, email: 'Este email já está em uso' }))
-        } else {
-          setErrors(prev => ({ ...prev, email: result.error || 'Erro ao criar conta' }))
+        // Handle API errors with improved field-specific error mapping
+        const newErrors: FormErrors = {}
+
+        // Use utility function to map API field errors
+        // if (result.fieldErrors) {
+        //   const mappedErrors = mapApiFieldErrors(result.fieldErrors)
+        //   Object.assign(newErrors, mappedErrors)
+        // }
+
+        // If no specific field errors, determine field based on error message
+        if (Object.keys(newErrors).length === 0 && result.error) {
+          const fieldName = inferFieldFromErrorMessage(result.error)
+          newErrors[fieldName as keyof FormErrors] = result.error
+        }
+
+        // If still no specific errors, show generic error
+        if (Object.keys(newErrors).length === 0) {
+          newErrors.email = result.error || 'Erro ao criar conta. Tente novamente.'
+        }
+
+        setErrors(prev => ({ ...prev, ...newErrors }))
+
+        // Se é erro de email duplicado, mostrar opção de reenvio
+        if ('suggestVerification' in result && result.suggestVerification) {
+          setSuccessMessage('')
+          setShowResendOption(true)
         }
       }
     }
   }
+
+  const handleResendCode = async () => {
+    if (!formData.email.trim()) {
+      setErrors(prev => ({ ...prev, email: 'Digite seu email primeiro.' }))
+      return
+    }
+
+    setIsResending(true)
+    setErrors({})
+    setSuccessMessage('')
+
+    try {
+      const result = await AuthService.resendActivationCode(formData.email)
+
+      setIsResending(false)
+
+      if (result.success) {
+        setSuccessMessage('Código reenviado com sucesso! Redirecionando para verificação...')
+        setShowResendOption(false)
+
+        // Redirecionar para verificação após 2 segundos
+        setTimeout(() => {
+          navigate('/verify-registration', { state: { email: formData.email } })
+        }, 2000)
+      } else {
+        setErrors(prev => ({ ...prev, email: result.error || 'Erro ao reenviar código.' }))
+      }
+    } catch (error) {
+      setIsResending(false)
+      setErrors(prev => ({ ...prev, email: 'Erro de conexão. Tente novamente.' }))
+      console.error('Erro ao reenviar código:', error)
+    }
+  }
+
+
 
   return (
     <div className="register-container">
@@ -240,7 +394,7 @@ export const Register: React.FC = () => {
 
           {/* Welcome Message */}
           <h1 className="welcome-title">
-            Crie sua conta e descubra<br />
+            Crie sua conta e explore<br />
             novos destinos
           </h1>
 
@@ -296,7 +450,7 @@ export const Register: React.FC = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
                 >
-                  {showPassword ? "🙈" : "👁️"}
+                  {showPassword ? "🙄" : "👁️"}
                 </button>
               </div>
               {errors.password && <span className="error-message">{errors.password}</span>}
@@ -326,7 +480,7 @@ export const Register: React.FC = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   aria-label={showConfirmPassword ? "Esconder senha" : "Mostrar senha"}
                 >
-                  {showConfirmPassword ? "🙈" : "👁️"}
+                  {showConfirmPassword ? "🙄" : "👁️"}
                 </button>
               </div>
               {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
@@ -340,11 +494,40 @@ export const Register: React.FC = () => {
 
             <button
               type="submit"
-              className="submit-button"
+              className={`submit-button ${isLoading ? 'loading' : ''}`}
               disabled={isLoading}
             >
               {isLoading ? 'Cadastrando...' : 'Cadastrar'}
             </button>
+
+            {showResendOption && (
+              <div className="resend-section" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+                <p style={{ margin: '0 0 10px 0', color: '#6c757d', fontSize: '14px' }}>
+                  Email já cadastrado? Reenvie o código de ativação:
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  className={`resend-button ${isResending ? 'loading' : ''}`}
+                  disabled={isResending}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: isResending ? 'not-allowed' : 'pointer',
+                    opacity: isResending ? 0.6 : 1
+                  }}
+                >
+                  {isResending ? 'Reenviando...' : 'Reenviar código de ativação'}
+                </button>
+                <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
+                  Ou <Link to="/verify-registration" style={{ color: '#007bff' }}>clique aqui para inserir o código</Link> se já o possui.
+                </p>
+              </div>
+            )}
 
             <div className="login-link-container">
               <span className="login-link-text">
@@ -358,14 +541,6 @@ export const Register: React.FC = () => {
         </div>
       </div>
 
-      {/* Right side - Banner Image */}
-      <div className="banner-side">
-        <img 
-          src={banner} 
-          alt="Travel banner" 
-          className="banner-image"
-        />
-      </div>
     </div>
   )
 }

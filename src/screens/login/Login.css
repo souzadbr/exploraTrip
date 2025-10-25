@@ -1,139 +1,174 @@
-.login-container {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
+/* Login Screen Styles */
 
-.login-form-side {
-  flex: 1;
+.login-container {
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #ffffff;
-  padding: 20px;
-  overflow-y: auto;
+  background: url('../../assets/foto-praia-login.png') center/cover;
+  padding: 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+}
+
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 0;
 }
 
 .login-form-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 28rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
 }
 
 .logo-container {
-  text-align: center;
-  margin-bottom: 40px;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
 }
 
 .logo {
-  height: 60px;
+  height: 5rem;
+}
+
+@media (min-width: 768px) {
+  .logo {
+    height: 6rem;
+  }
 }
 
 .welcome-title {
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 1.5rem;
   text-align: center;
+  font-weight: 700;
   color: #083D77;
-  margin-bottom: 40px;
-  line-height: 1.4;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+}
+
+.welcome-subtitle {
+  font-size: 1rem;
+  text-align: center;
+  color: #64748b;
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  .welcome-title {
+    font-size: 1.875rem;
+  }
 }
 
 .login-form {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .form-group {
-  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
 }
 
 .form-label {
   display: block;
   color: #083D77;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
 }
 
 .form-input {
   width: 100%;
   border: none;
-  border-bottom: 2px solid #e5e7eb;
-  padding: 12px 0;
+  border-bottom: 1px solid #083D77;
+  padding: 0.5rem 0;
   background-color: transparent;
   color: #083D77;
-  font-size: 16px;
   outline: none;
   transition: border-color 0.2s;
 }
 
 .form-input:focus {
-  border-bottom-color: #083D77;
+  border-bottom-color: #062f5a;
 }
 
-.form-input.error {
-  border-bottom-color: #ef4444;
+.form-input::placeholder {
+  color: #9ca3af;
 }
 
-.error-message {
-  color: #ef4444;
-  font-size: 12px;
-  margin-top: 4px;
-  display: block;
-}
-
+/* Password input container */
 .password-input-container {
   position: relative;
   display: flex;
   align-items: center;
 }
 
+.password-input-container .form-input {
+  padding-right: 2.5rem;
+}
+
 .password-toggle-btn {
   position: absolute;
-  right: 8px;
+  right: 0.5rem;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
-  color: #6b7280;
-  padding: 4px;
+  font-size: 1.2rem;
+  color: #083D77;
+  padding: 0.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s;
+  transition: opacity 0.2s;
 }
 
 .password-toggle-btn:hover {
-  color: #083D77;
+  opacity: 0.7;
 }
 
 .password-toggle-btn:focus {
-  outline: none;
-  color: #083D77;
+  outline: 2px solid #083D77;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .form-options {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 40px;
+  font-size: 0.875rem;
+  color: #083D77;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
   cursor: pointer;
-  font-size: 14px;
-  color: #083D77;
 }
 
 .checkbox-input {
-  margin-right: 8px;
+  margin-right: 0.5rem;
 }
 
 .forgot-password {
-  font-size: 14px;
   color: #083D77;
   text-decoration: none;
+  transition: text-decoration 0.2s;
 }
 
 .forgot-password:hover {
@@ -144,10 +179,10 @@
   width: 100%;
   background-color: #083D77;
   color: white;
-  padding: 16px;
+  padding: 0.5rem;
   border: none;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 0.375rem;
+  font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -157,48 +192,74 @@
   background-color: #062f5a;
 }
 
+.submit-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Register Link Styles */
 .register-link-container {
   text-align: center;
-  margin-top: 20px;
+  margin-top: 1.5rem;
 }
 
 .register-link-text {
-  font-size: 14px;
   color: #083D77;
+  font-size: 0.875rem;
 }
 
 .register-link {
   color: #083D77;
-  text-decoration: none;
   font-weight: 500;
+  text-decoration: none;
+  transition: text-decoration 0.2s;
 }
 
 .register-link:hover {
   text-decoration: underline;
 }
 
-.banner-side {
-  flex: 1;
-  position: relative;
-}
-
-.banner-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Responsividade */
-@media (max-width: 1023px) {
-  .banner-side {
-    display: none;
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .login-container {
+    padding: 0.5rem;
   }
   
-  .login-form-side {
-    padding: 20px;
+  .welcome-title {
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
   }
   
-  .login-form-container {
-    max-width: 100%;
+  .form-options {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
   }
+}
+
+/* Focus states for accessibility */
+.form-input:focus,
+.submit-button:focus,
+.register-link:focus,
+.forgot-password:focus {
+  outline: 2px solid #083D77;
+  outline-offset: 2px;
+}
+
+/* Loading state */
+.submit-button.loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Error message */
+.error-message {
+  color: #e74c3c;
+  font-size: 14px;
+  margin-bottom: 16px;
+  text-align: center;
+  padding: 8px;
+  background-color: #fdf2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
 }

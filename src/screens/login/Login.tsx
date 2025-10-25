@@ -1,194 +1,170 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import logo from '../../assets/logo.png'
-import banner from '../../assets/banner.png'
 import './Login.css'
-
-interface LoginFormData {
-  username: string
-  password: string
-}
-
-interface LoginFormErrors {
-  username?: string
-  password?: string
-}
+import { AuthService } from '../../services/authService'
 
 export const Login: React.FC = () => {
-  const [formData, setFormData] = useState<LoginFormData>({
-    username: '',
+  const navigate = useNavigate()
+
+  // Verifica se o usuário já está autenticado ao carregar o componente
+  useEffect(() => {
+    if (AuthService.isAuthenticated()) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [navigate])
+  const [formData, setFormData] = useState({
+    email: '',
     password: ''
   })
-
-  const [errors, setErrors] = useState<LoginFormErrors>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
-  const validateUsername = (username: string): string | undefined => {
-    if (username.trim().length < 3) {
-      return 'Usuário deve ter pelo menos 3 caracteres'
-    }
-    return undefined
-  }
-
-  const validatePassword = (password: string): string | undefined => {
-    if (password.length < 8) {
-      return 'Senha deve ter pelo menos 8 caracteres'
-    }
-    return undefined
-  }
-
-  const handleInputChange = (field: keyof LoginFormData, value: string) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-
     // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }))
-    }
-  }
-
-  const handleBlur = (field: keyof LoginFormData) => {
-    const value = formData[field]
-    let error: string | undefined
-
-    switch (field) {
-      case 'username':
-        error = validateUsername(value)
-        break
-      case 'password':
-        error = validatePassword(value)
-        break
-    }
-
     if (error) {
-      setErrors(prev => ({ ...prev, [field]: error }))
+      setError('')
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+    setIsLoading(true)
 
-    const newErrors: LoginFormErrors = {}
+    // Validação básica dos campos
+    if (!formData.email.trim() || !formData.password.trim()) {
+      setError('Por favor, preencha todos os campos')
+      setIsLoading(false)
+      return
+    }
 
-    // Validate all fields
-    const usernameError = validateUsername(formData.username)
-    const passwordError = validatePassword(formData.password)
+    // Validação básica de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      setError('Por favor, insira um email válido')
+      setIsLoading(false)
+      return
+    }
 
-    if (usernameError) newErrors.username = usernameError
-    if (passwordError) newErrors.password = passwordError
+    try {
+      // Chamar o serviço de autenticação
+      const result = await AuthService.login({
+        email: formData.email,
+        password: formData.password
+      })
 
-    setErrors(newErrors)
+      setIsLoading(false)
 
-    // If no errors, submit form
-    if (Object.keys(newErrors).length === 0) {
-      console.log('Login submitted:', formData)
-      // Here you would typically send data to your API
+      if (result.success && result.data) {
+        // Salvar dados de autenticação
+        console.log('data salva no storage: ', formData.email)
+        AuthService.saveAuthData(formData.email)
+
+        // Navegar para o dashboard
+        navigate('/dashboard')
+      } else {
+        // Exibir erro retornado pela API
+        setError(result.error || 'Erro ao fazer login. Tente novamente.')
+      }
+    } catch (error) {
+      setIsLoading(false)
+      setError('Erro inesperado. Tente novamente.')
+      console.error('Erro no login:', error)
     }
   }
-
   return (
     <div className="login-container">
-      {/* Left side - Login Form */}
-      <div className="login-form-side">
-        <div className="login-form-container">
-          {/* Logo */}
-          <div className="logo-container">
-            <img
-              src={logo}
-              alt="explora trip logo"
-              className="logo"
+      <div className="login-form-container">
+        <div className="logo-container">
+          <img src={logo} alt="explora trip logo" className="logo" />
+        </div>
+
+        <h1 className="welcome-title">
+          Bem-vindo de volta
+        </h1>
+
+        <p className="welcome-subtitle">
+          Pronto para a próxima viagem?
+        </p>
+
+        <form className="login-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="Digite seu email"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
             />
           </div>
 
-          {/* Welcome Message */}
-          <h1 className="welcome-title">
-            Bem-vindo de volta,<br />
-            pronto pra próxima viagem?
-          </h1>
-
-          {/* Login Form */}
-          <form className="login-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">
-                Usuário
-              </label>
+          <div className="form-group">
+            <label className="form-label">Senha</label>
+            <div className="password-input-container">
               <input
-                type="text"
-                className={`form-input ${errors.username ? 'error' : ''}`}
-                placeholder="Digite seu usuário"
-                value={formData.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                onBlur={() => handleBlur('username')}
+                type={showPassword ? "text" : "password"}
+                className="form-input"
+                placeholder="Digite sua senha"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
               />
-              {errors.username && <span className="error-message">{errors.username}</span>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                Senha
-              </label>
-              <div className="password-input-container">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  className={`form-input ${errors.password ? 'error' : ''}`}
-                  placeholder="Digite sua senha"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  onBlur={() => handleBlur('password')}
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
-                >
-                  {showPassword ? "🙈" : "👁️"}
-                </button>
-              </div>
-              {errors.password && <span className="error-message">{errors.password}</span>}
-            </div>
-
-            <div className="form-options">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  className="checkbox-input"
-                />
-                Mantenha-me contactado
-              </label>
-              <a
-                href="#"
-                className="forgot-password"
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
               >
-                Esqueci minha senha
-              </a>
+                {showPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
             </div>
+          </div>
 
-            <button
-              type="submit"
-              className="submit-button"
-            >
-              Embarcar
-            </button>
-
-            <div className="register-link-container">
-              <span className="register-link-text">
-                Não tem conta? {' '}
-                <Link to="/" className="register-link">
-                  Cadastre-se
-                </Link>
-              </span>
+          {error && (
+            <div className="error-message" style={{ color: '#e74c3c', fontSize: '14px', marginBottom: '16px' }}>
+              {error}
             </div>
-          </form>
-        </div>
-      </div>
+          )}
 
-      {/* Right side - Banner Image */}
-      <div className="banner-side">
-        <img
-          src={banner}
-          alt="Travel banner"
-          className="banner-image"
-        />
+          <div className="form-options">
+            <label className="checkbox-label">
+              <input type="checkbox" className="checkbox-input" />
+              Mantenha-me contactado
+            </label>
+            <Link to="/forgot-password" className="forgot-password">
+              Esqueci minha senha
+            </Link>
+          </div>
+
+          <button
+            type="submit"
+            className={`submit-button ${isLoading ? 'loading' : ''}`}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Entrando...' : 'Embarcar'}
+          </button>
+
+          <div className="register-link-container">
+            <span className="register-link-text">
+              Não possui conta? {' '}
+              <Link to="/register" className="register-link">
+                Cadastre-se
+              </Link>
+            </span>
+          </div>
+
+          <div className="register-link-container" style={{ marginTop: '10px' }}>
+            <span className="register-link-text">
+              Já se cadastrou mas não confirmou? {' '}
+              <Link to="/verify-registration" className="register-link">
+                Confirmar cadastro
+              </Link>
+            </span>
+          </div>
+        </form>
       </div>
     </div>
   )
