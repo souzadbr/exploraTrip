@@ -71,12 +71,12 @@ export interface TripApiResponse {
   name: string
   startDate: string
   endDate: string
-  tripBudget: number
-  notes: string[]
-  userRoles: Array<{
+  tripBudget: number | null
+  notes: string[] | null
+  usersRolesDTO: Array<{
     userEmail: string
     role: number
-  }>
+  }> | null
 }
 
 // Local specific interfaces

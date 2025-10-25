@@ -591,15 +591,7 @@ export const CreateTrip: React.FC = () => {
               {trips.map((trip) => (
                 <TripCard
                   key={trip.id}
-                  trip={{
-                    id: trip.id,
-                    name: trip.name,
-                    startDate: trip.startDate,
-                    endDate: trip.endDate,
-                    tripBudget: trip.tripBudget ?? 0,
-                    notes: trip.notes ?? [],
-                    userRoles: trip.userRoles ?? []
-                  }}
+                  trip={trip}
                   onEdit={handleEditTrip}
                   onDelete={handleDeleteTrip}
                 />

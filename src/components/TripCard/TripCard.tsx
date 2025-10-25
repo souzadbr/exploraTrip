@@ -15,8 +15,6 @@ interface TripCardProps {
 export const TripCard: React.FC<TripCardProps> = ({ trip, onEdit, onDelete }) => {
   const navigate = useNavigate()
 
-  logger.log('TripCard received trip data:', trip)
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('pt-BR', {
@@ -89,7 +87,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip, onEdit, onDelete }) =>
           <span className="budget-value">{formatCurrencyDisplay(trip.tripBudget)}</span>
         </div>
 
-        {trip.notes && trip.notes.length > 0 && (
+        {trip.notes && Array.isArray(trip.notes) && trip.notes.length > 0 && (
           <div className="trip-card-notes">
             <span className="notes-label">Notas:</span>
             <div className="notes-list">
@@ -103,17 +101,17 @@ export const TripCard: React.FC<TripCardProps> = ({ trip, onEdit, onDelete }) =>
           </div>
         )}
 
-        {trip.userRoles && trip.userRoles.length > 0 && (
+        {trip.usersRolesDTO && Array.isArray(trip.usersRolesDTO) && trip.usersRolesDTO.length > 0 && (
           <div className="trip-card-participants">
             <span className="participants-label">Participantes:</span>
             <div className="participants-list">
-              {trip.userRoles.slice(0, 2).map((userRole, index) => (
+              {trip.usersRolesDTO.slice(0, 2).map((userRole, index) => (
                 <span key={index} className="participant-item">
                   {userRole.userEmail}
                 </span>
               ))}
-              {trip.userRoles.length > 2 && (
-                <span className="participants-more">+{trip.userRoles.length - 2} mais</span>
+              {trip.usersRolesDTO.length > 2 && (
+                <span className="participants-more">+{trip.usersRolesDTO.length - 2} mais</span>
               )}
             </div>
           </div>
