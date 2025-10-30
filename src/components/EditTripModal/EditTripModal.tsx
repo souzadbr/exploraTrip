@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import './EditTripModal.css'
-import type { TripApiData, TripApiResponse } from '../../config/api'
+import type { UpdateTripApiData, TripApiResponse } from '../../config/api'
 import { formatCurrencyInput, parseCurrencyInput } from '../../utils/currencyUtils'
 import { validateEmail, isStartBeforeEnd } from '../../utils/validationUtils'
 import { logger } from '../../utils/logger'
@@ -23,7 +23,7 @@ interface EditTripModalProps {
   isOpen: boolean
   trip: TripApiResponse | null
   onClose: () => void
-  onSave: (tripId: string, tripData: TripApiData) => Promise<void>
+  onSave: (tripId: string, tripData: UpdateTripApiData) => Promise<void>
   isLoading?: boolean
   error?: string
 }
@@ -75,12 +75,15 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
         endDate: formatDateForInput(trip.endDate),
         budget: tripBudget,
         notes: trip.notes || [],
-        userRoles: trip.userRoles || []
+        userRoles: trip.usersRolesDTO || []
       })
 
       // Format budget for display
+      // CORREÇÃO DO BUG: formatCurrencyInput espera centavos, então multiplicamos por 100
+      // Exemplo: tripBudget = 49990 (reais) → 49990 * 100 = 4999000 (centavos) → formata como "49.990,00"
       if (tripBudget !== null) {
-        setBudgetDisplay(formatCurrencyInput(tripBudget.toString().replace('.', '')))
+        const budgetInCents = (tripBudget * 100).toString()
+        setBudgetDisplay(formatCurrencyInput(budgetInCents))
       } else {
         setBudgetDisplay('')
       }
@@ -188,7 +191,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!trip) return
     if (!validateForm()) return
 
@@ -203,14 +206,18 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
       }
     }
 
-    const tripData: TripApiData = {
-      name: formData.name.trim(),
-      startDate: convertToISOString(formData.startDate),
-      endDate: convertToISOString(formData.endDate),
-      tripBudget: formData.budget,
-      notes: formData.notes,
-      userRoles: formData.userRoles
+    // CORREÇÃO: Usar UpdateTripApiData com os nomes de propriedades corretos
+    // que correspondem ao UpdateTripDTO do backend
+    const tripData: UpdateTripApiData = {
+      TripName: formData.name.trim(),              // Backend espera "TripName" (PascalCase)
+      startDate: convertToISOString(formData.startDate),  // Backend espera "startDate" (camelCase)
+      endDate: convertToISOString(formData.endDate),      // Backend espera "endDate" (camelCase)
+      TripBudget: formData.budget,                 // Backend espera "TripBudget" (PascalCase)
+      Notes: formData.notes                        // Backend espera "Notes" (PascalCase)
+      // IMPORTANTE: userRoles NÃO é enviado no UPDATE, apenas no CREATE
     }
+
+    logger.log('Enviando dados de atualização:', tripData)
 
     try {
       await onSave(trip.id, tripData)

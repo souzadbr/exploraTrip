@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { buildApiUrl, API_CONFIG } from '../config/api'
-import type { TripApiData, TripApiResponse } from '../config/api'
+import type { TripApiData, TripApiResponse, UpdateTripApiData } from '../config/api'
 import {
   getHttpErrorMessage,
   getConnectionErrorMessage,
@@ -332,7 +332,13 @@ export class TripService {
     }
   }
 
-  static async updateTrip(tripId: string, tripData: TripApiData): Promise<UpdateTripResult> {
+  /**
+   * Atualiza uma viagem existente
+   * IMPORTANTE: Usa UpdateTripApiData que corresponde ao UpdateTripDTO do backend
+   * @param tripId - ID da viagem a ser atualizada
+   * @param tripData - Dados da viagem no formato UpdateTripApiData
+   */
+  static async updateTrip(tripId: string, tripData: UpdateTripApiData): Promise<UpdateTripResult> {
     try {
       console.log('Atualizando viagem:', tripId, tripData)
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import './CreateTrip.css'
 import logoHome from '../../assets/logo-home.png'
 import { TripService } from '../../services/tripService'
-import type { TripApiData, TripApiResponse } from '../../config/api'
+import type { TripApiData, TripApiResponse, UpdateTripApiData } from '../../config/api'
 import { TripCard } from '../../components/TripCard/TripCard'
 import { EditTripModal } from '../../components/EditTripModal/EditTripModal'
 import { AuthService } from '../../services/authService'
@@ -316,7 +316,7 @@ export const CreateTrip: React.FC = () => {
     setEditingTrip(null)
   }
 
-  const handleSaveTrip = async (tripId: string, tripData: TripApiData) => {
+  const handleSaveTrip = async (tripId: string, tripData: UpdateTripApiData) => {
     setIsUpdating(true)
 
     try {

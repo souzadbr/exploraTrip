@@ -54,16 +54,30 @@ export interface LoginApiResponse {
 }
 
 // Trip specific interfaces
+
+// Interface para CRIAR viagem (POST /api/trip)
 export interface TripApiData {
   name: string
   startDate: string
   endDate: string
-  tripBudget: number
+  tripBudget: number | null
   notes: string[]
   userRoles: Array<{
     userEmail: string
     role: number
   }>
+}
+
+// Interface para ATUALIZAR viagem (PUT /api/trip/{id})
+// IMPORTANTE: Os nomes das propriedades devem corresponder exatamente ao UpdateTripDTO do backend
+// Backend espera: TripName, startDate, endDate, TripBudget, Notes (sem userRoles)
+export interface UpdateTripApiData {
+  TripName: string | null        // Backend espera "TripName" com T maiúsculo
+  startDate: string | null        // Backend espera "startDate" em camelCase
+  endDate: string | null          // Backend espera "endDate" em camelCase
+  TripBudget: number | null       // Backend espera "TripBudget" com T maiúsculo
+  Notes: string[] | null          // Backend espera "Notes" com N maiúsculo
+  // NOTA: userRoles NÃO é aceito no UPDATE, apenas no CREATE
 }
 
 export interface TripApiResponse {
